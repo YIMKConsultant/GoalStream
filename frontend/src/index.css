@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-pitch-900 text-white min-h-screen;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-pitch-800; }
+  ::-webkit-scrollbar-thumb { @apply bg-green-600 rounded; }
+}
+
+@layer components {
+  .card {
+    @apply bg-pitch-800 rounded-xl border border-white/5 hover:border-green-600/40 transition-colors;
+  }
+  .btn-primary {
+    @apply bg-green-600 hover:bg-green-500 text-white font-semibold px-5 py-2 rounded-lg transition-colors;
+  }
+  .btn-ghost {
+    @apply border border-white/20 hover:border-green-500 text-white/70 hover:text-white px-5 py-2 rounded-lg transition-colors;
+  }
+  .live-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse mr-1;
+  }
+}

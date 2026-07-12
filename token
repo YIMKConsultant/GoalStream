@@ -1,0 +1,14 @@
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsImV4cCI6MTc4MjU4MDY0N30.MXtz5pgKFbi8xnS4i1hjePw6xTX9bZUKN7GW2zDdOzg
+
+#https://rtmklik.rtm.gov.my/live/khas/fifawc2
+
+{
+  "match_id": 1,
+  "league_code": "WorldCup",
+  "label": "WatchNow",
+  "stream_url": "https://rtmklik.rtm.gov.my/live/khas/fifawc2", 
+  #https://d30aylox5wvifh.cloudfront.net/live/media0/wc2/HLS/wc2-avc1_3000000=1985961624.m3u8
+
+  "stream_type": "embed",
+  "language": "English"
+}
