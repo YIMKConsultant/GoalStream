@@ -27,7 +27,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 flex items-center gap-6 h-16">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 font-bold text-xl text-green-400 shrink-0">
-          ⚽ FootballWatch
+          ⚽ GoalStream
         </Link>
 
         {/* League dropdown */}
@@ -54,7 +54,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <Link to="/" className={`text-sm transition-colors ${location.pathname === '/' ? 'text-green-400' : 'text-white/70 hover:text-white'}`}>
+        <Link to="/live" className={`text-sm transition-colors ${location.pathname === '/live' ? 'text-green-400' : 'text-white/70 hover:text-white'}`}>
           Live
         </Link>
         <Link to="/today" className={`text-sm transition-colors ${location.pathname === '/today' ? 'text-green-400' : 'text-white/70 hover:text-white'}`}>

@@ -3,6 +3,9 @@ import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import League from './pages/League'
 import Match from './pages/Match'
+import Live from './pages/Live'
+import Channels from './pages/Channels'
+import Replays from './pages/Replays'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
@@ -13,6 +16,9 @@ export default function App() {
       <main className="flex-1">
         <Routes>
           <Route path="/"               element={<Home />} />
+          <Route path="/live"           element={<Live />} />
+          <Route path="/live/channels"  element={<Channels />} />
+          <Route path="/live/replays"   element={<Replays />} />
           <Route path="/league/:code"   element={<League />} />
           <Route path="/match/:id"      element={<Match />} />
           <Route path="/login"          element={<Login />} />
@@ -20,7 +26,7 @@ export default function App() {
         </Routes>
       </main>
       <footer className="text-center text-white/20 text-xs py-6 border-t border-white/5">
-        FootballWatch © {new Date().getFullYear()} · Powered by football-data.org
+        GoalStream © {new Date().getFullYear()} · Powered by football-data.org
       </footer>
     </div>
   )

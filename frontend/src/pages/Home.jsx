@@ -63,19 +63,19 @@ export default function Home() {
         {liveMatches.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <Link
-              to="/match/1"
+              to="/live"
               className="card block p-4 hover:scale-[1.01] transition-transform"
             >
               <div className="flex items-center justify-between mb-3 text-xs text-white/40">
-                <span>TV1 Malaysia</span>
+                <span>Live TV</span>
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-[10px] font-bold bg-red-600 animate-pulse">
                   LIVE
                 </span>
               </div>
               <div className="flex flex-col items-center gap-2 py-4">
                 <span className="text-4xl">📺</span>
-                <span className="text-lg font-bold text-green-400">TV1 Live</span>
-                <span className="text-sm text-white/40">Click to watch live stream</span>
+                <span className="text-lg font-bold text-green-400">Live Sports Channels</span>
+                <span className="text-sm text-white/40">Browse live channels to watch</span>
               </div>
             </Link>
           </div>

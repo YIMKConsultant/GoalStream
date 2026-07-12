@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from config import settings
-from routers import auth, leagues, matches, streams, favorites, proxy
+from routers import auth, leagues, matches, streams, favorites, proxy, iptv
 from websocket import live_scores_ws
 
 
@@ -14,8 +14,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Football Watch API",
-    description="Backend for the Football Watch app — live scores, streams, standings.",
+    title="GoalStream API",
+    description="Backend for the GoalStream app — live scores, streams, standings.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -35,6 +35,7 @@ app.include_router(matches.router)
 app.include_router(streams.router)
 app.include_router(favorites.router)
 app.include_router(proxy.router)
+app.include_router(iptv.router)
 
 # WebSocket
 app.add_api_websocket_route("/ws/live", live_scores_ws)
@@ -42,7 +43,7 @@ app.add_api_websocket_route("/ws/live", live_scores_ws)
 
 @app.get("/", tags=["Health"])
 async def root():
-    return {"status": "ok", "message": "Football Watch API is running"}
+    return {"status": "ok", "message": "GoalStream API is running"}
 
 
 @app.get("/health", tags=["Health"])

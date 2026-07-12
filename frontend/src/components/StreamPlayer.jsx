@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Hls from 'hls.js'
 import api from '../api/client'
 
-function HlsPlayer({ src }) {
+export function HlsPlayer({ src }) {
   const videoRef = useRef(null)
   const [error, setError] = useState('')
 
