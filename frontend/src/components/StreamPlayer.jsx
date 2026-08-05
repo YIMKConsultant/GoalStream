@@ -5,6 +5,7 @@ import api from '../api/client'
 export function HlsPlayer({ src }) {
   const videoRef = useRef(null)
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     setError('')
@@ -13,16 +14,51 @@ export function HlsPlayer({ src }) {
 
     if (Hls.isSupported()) {
       const hls = new Hls({
+        // Generous timeouts + retries: proxied LIVE playlists add latency, and
+        // free restreams stall briefly. Give them room before failing.
+        manifestLoadingTimeOut: 20000,
+        manifestLoadingMaxRetry: 4,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingTimeOut: 20000,
+        levelLoadingMaxRetry: 6,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingTimeOut: 30000,
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 1000,
+        liveSyncDurationCount: 3,
         xhrSetup: (xhr) => {
           xhr.setRequestHeader('Origin', window.location.origin)
+        },
+      })
+
+      // Recover from transient fatal errors instead of killing the stream.
+      let netRecover = 0
+      let mediaRecover = 0
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (!data.fatal) return
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          if (netRecover++ < 5) {
+            setTimeout(() => { try { hls.startLoad() } catch {} }, 1500)
+          } else {
+            setError(`Stream error: ${data.type} — ${data.details}`)
+          }
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          if (mediaRecover++ < 3) {
+            try { hls.recoverMediaError() } catch {}
+          } else {
+            setError(`Stream error: ${data.type} — ${data.details}`)
+          }
+        } else {
+          setError(`Stream error: ${data.type} — ${data.details}`)
         }
       })
+      // A clean fragment load resets the recovery counters, so a stream that
+      // hiccups every few minutes keeps healing instead of exhausting retries.
+      hls.on(Hls.Events.FRAG_BUFFERED, () => { netRecover = 0; mediaRecover = 0 })
+
       hls.loadSource(src)
       hls.attachMedia(video)
       hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}))
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) setError(`Stream error: ${data.type} — ${data.details}`)
-      })
       return () => hls.destroy()
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
@@ -30,7 +66,7 @@ export function HlsPlayer({ src }) {
     } else {
       setError('Your browser does not support HLS video.')
     }
-  }, [src])
+  }, [src, reloadKey])
 
   if (error) return (
     <div className="w-full h-full rounded-xl flex flex-col items-center justify-center bg-pitch-900 border border-red-800 gap-3 p-6">
@@ -38,7 +74,7 @@ export function HlsPlayer({ src }) {
       <p className="text-red-400 text-sm text-center">{error}</p>
       <p className="text-white/30 text-xs text-center">Stream error — the URL may have expired.</p>
       <div className="flex gap-3">
-        <button onClick={() => { setError(''); }} className="btn-primary text-sm px-4 py-2">
+        <button onClick={() => { setError(''); setReloadKey((k) => k + 1); }} className="btn-primary text-sm px-4 py-2">
           ↺ Retry
         </button>
         <a href={src} target="_blank" rel="noopener noreferrer" className="btn-ghost text-sm px-4 py-2">

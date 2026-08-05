@@ -11,6 +11,7 @@ from services.iptv_org import (
     get_channel_stream,
     get_channels_for_league,
     get_replay_channels,
+    get_playing_channels,
     check_stream_alive,
 )
 
@@ -65,14 +66,28 @@ async def list_sports_channels():
     return [_to_model(c) for c in channels]
 
 
+@router.get("/featured", response_model=list[IptvChannel])
+async def featured_channels():
+    """Sports channels that are actually playing right now (liveness-checked)."""
+    try:
+        channels = await get_playing_channels()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"iptv-org API unavailable: {e}")
+    return [_to_model(c) for c in channels]
+
+
 @router.get("/for-league/{league_code}", response_model=list[IptvChannel])
-async def channels_for_league(league_code: str):
+async def channels_for_league(league_code: str, include_offline: bool = False):
     """
     Candidate channels that MAY be broadcasting a league right now.
     iptv-org has no schedule, so this is a broadcaster heuristic, not a guarantee.
+    Each candidate is liveness-checked; offline/geo-locked ones are hidden unless
+    include_offline=true (then they come back tagged alive=false).
     """
     try:
-        channels = await get_channels_for_league(league_code)
+        channels = await get_channels_for_league(
+            league_code, only_alive=not include_offline
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"iptv-org API unavailable: {e}")
     return [_to_model(c) for c in channels]

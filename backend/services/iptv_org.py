@@ -28,6 +28,10 @@ _CHECK_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 # Stream liveness is volatile — cache results for 2 minutes.
 _status_cache: TTLCache = TTLCache(maxsize=512, ttl=120)
 
+# Bound concurrent liveness probes: firing 100+ TLS handshakes at once thrashes
+# sockets and makes everything slower. ~48 in flight keeps it fast and stable.
+_probe_sem = asyncio.Semaphore(48)
+
 
 async def _get_json(name: str) -> list:
     """Fetch and cache one of the iptv-org JSON files (e.g. 'streams')."""
@@ -106,6 +110,9 @@ _GLOBAL_FOOTBALL = [
     "bein", "espn", "fox soccer", "fox sports", "premier sports",
     "ziggo sport", "dazn", "star sports", "movistar", "premiere fc",
     "golazo", "arena sport", "digi sport", "sportitalia",
+    # Confirmed present + carrying live football in the free catalog.
+    "sport tv", "setanta", "goltv", "match!", "okko futbol",
+    "tyc sports", "sport1", "sport 1",
 ]
 
 # Per-competition: country codes + extra broadcaster name-substrings.
@@ -124,10 +131,47 @@ _LEAGUE_HINTS: dict[str, dict] = {
 }
 
 
-async def get_channels_for_league(league_code: str, limit: int = 20) -> list[dict]:
+_featured_cache: TTLCache = TTLCache(maxsize=1, ttl=900)  # 15 min
+
+
+async def get_playing_channels() -> list[dict]:
+    """
+    Sports channels that are actually serving a stream right now — bounded to
+    the known football broadcasters (so we don't liveness-check all ~450) and
+    liveness-checked concurrently. Cached 5 min. Powers the "Featured" page.
+    """
+    cached = _featured_cache.get("playing")
+    if cached is not None:
+        return cached
+
+    chans = [
+        c for c in await get_sports_channels()
+        if any(k in c["name"].lower() for k in _GLOBAL_FOOTBALL)
+    ]
+    statuses = await asyncio.gather(*[
+        check_stream_alive(c["url"], c.get("referrer"), c.get("user_agent"))
+        for c in chans
+    ])
+    alive = [
+        {**c, "alive": True, "status": s["status"]}
+        for c, s in zip(chans, statuses) if s["alive"]
+    ]
+    alive.sort(key=lambda c: c["name"])
+    _featured_cache["playing"] = alive
+    return alive
+
+
+async def get_channels_for_league(
+    league_code: str, limit: int = 20, only_alive: bool = True
+) -> list[dict]:
     """
     Best-effort list of channels that may be broadcasting the given league,
     league-specific broadcasters first, then that country, then global feeds.
+
+    Each candidate is liveness-checked (concurrently, cached 2 min) and tagged
+    with an `alive` flag — most premium sports feeds in the free catalog are
+    geo-locked or offline (403), so by default only channels that are actually
+    serving right now are returned.
     """
     hints = _LEAGUE_HINTS.get(league_code.upper(), {})
     league_names = hints.get("names", [])
@@ -147,7 +191,20 @@ async def get_channels_for_league(league_code: str, limit: int = 20) -> list[dic
         scored.append((priority, ch["name"], ch))
 
     scored.sort(key=lambda t: (t[0], t[1]))
-    return [ch for _, _, ch in scored[:limit]]
+    candidates = [ch for _, _, ch in scored[:limit]]
+
+    # Verify each candidate is actually serving before offering it to the player.
+    statuses = await asyncio.gather(*[
+        check_stream_alive(c["url"], c.get("referrer"), c.get("user_agent"))
+        for c in candidates
+    ])
+    tagged = [
+        {**c, "alive": s["alive"], "status": s["status"]}
+        for c, s in zip(candidates, statuses)
+    ]
+    # Keep broadcaster priority, but float the ones that actually work to the top.
+    tagged.sort(key=lambda c: not c["alive"])
+    return [c for c in tagged if c["alive"]] if only_alive else tagged
 
 
 # ── Stream liveness check ───────────────────────────────────────────────────
@@ -167,20 +224,38 @@ async def check_stream_alive(url: str, referrer: str | None = None,
     if referrer:
         headers["Referer"] = referrer
 
-    result: dict = {"alive": False, "status": 0, "error": None}
-    try:
-        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
-        is_m3u8 = ("mpegurl" in resp.headers.get("content-type", "")
-                   or url.split("?")[0].endswith(".m3u8"))
-        is_hls = "#EXTM3U" in resp.text[:300] if is_m3u8 else False
-        result = {
-            "alive": resp.status_code == 200 and (is_hls or not is_m3u8),
-            "status": resp.status_code,
+    async def _probe() -> dict:
+        # Stream the response so we can validate an HLS playlist by its first
+        # bytes WITHOUT downloading a whole (endless) live segment — reading
+        # resp.text on a raw stream would block until the read timeout.
+        async with httpx.AsyncClient(timeout=4, follow_redirects=True) as client:
+            async with client.stream("GET", url, headers=headers) as resp:
+                status = resp.status_code
+                is_m3u8 = ("mpegurl" in resp.headers.get("content-type", "")
+                           or url.split("?")[0].endswith(".m3u8"))
+                is_hls = True
+                if status == 200 and is_m3u8:
+                    head = b""
+                    async for chunk in resp.aiter_bytes():
+                        head += chunk
+                        if len(head) >= 300:
+                            break
+                    is_hls = b"#EXTM3U" in head[:300]
+        return {
+            "alive": status == 200 and (is_hls or not is_m3u8),
+            "status": status,
             "error": None,
         }
+
+    try:
+        # Hard ceiling per check: a bad host can chain several redirect hops,
+        # each with its own timeout, so bound the whole probe — otherwise
+        # gather() over many channels waits on the single slowest one.
+        async with _probe_sem:
+            result = await asyncio.wait_for(_probe(), timeout=4)
     except Exception as e:
-        result = {"alive": False, "status": 0, "error": type(e).__name__}
+        result = {"alive": False, "status": 0,
+                  "error": "Timeout" if isinstance(e, asyncio.TimeoutError) else type(e).__name__}
 
     _status_cache[url] = result
     return result

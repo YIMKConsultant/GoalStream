@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     football_api_key: str = ""
     football_api_base_url: str = "https://api.football-data.org/v4"
 
+    # Free token from https://www.scorebat.com/video-api/ — unlocks a fresh,
+    # domain-authorised video feed. Empty falls back to the frozen legacy feed.
+    scorebat_token: str = ""
+
     secret_key: str = "dev-secret-change-in-production"
     access_token_expire_minutes: int = 10080  # 7 days
 

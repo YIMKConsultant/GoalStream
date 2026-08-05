@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import api from '../api/client'
 import StreamPlayer from '../components/StreamPlayer'
+import WatchOfficial from '../components/WatchOfficial'
 
 const STATUS_COLOR = {
   IN_PLAY: 'text-red-400', PAUSED: 'text-yellow-400',
@@ -100,6 +101,9 @@ export default function Match() {
         </h2>
         <StreamPlayer streams={streams} />
       </div>
+
+      {/* Legal broadcaster deep-links */}
+      {match && <WatchOfficial match={match} />}
 
     </div>
   )

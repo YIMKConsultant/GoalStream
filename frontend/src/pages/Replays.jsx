@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowLeft, Clapperboard } from 'lucide-react'
 import api from '../api/client'
 import { HlsPlayer } from '../components/StreamPlayer'
+
+// Yellow pill button, matching the Live page.
+const yBtn = 'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-base font-semibold ' +
+  'text-yellow-300 bg-yellow-400/15 ring-1 ring-yellow-400/40 hover:bg-yellow-400/25 transition-colors'
 
 export default function Replays() {
   const [channels, setChannels] = useState([])
@@ -19,24 +24,20 @@ export default function Replays() {
   }, [showOffline])
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-6">
-        <Link to="/live" className="text-white/40 text-sm hover:text-green-400">← Live football</Link>
-        <h1 className="text-3xl font-extrabold mt-1 mb-1">Replays & <span className="text-green-400">Classic Matches</span></h1>
-        <p className="text-white/40 text-sm">
-          Free 24/7 channels airing classic games & full-match replays — FIFA+ carries a World Cup archive.
-          Live-status is checked on our server.
-        </p>
+        <Link to="/live" className={yBtn}><ArrowLeft size={18} /> Live</Link>
+        <h1 className="text-4xl font-extrabold mt-3 mb-1">Replays &amp; <span className="text-yellow-400">Classic Matches</span></h1>
       </div>
 
       {active && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-lg font-bold">{active.name}</h2>
-              <p className="text-white/40 text-xs">{active.country ?? '—'}{active.quality ? ` · ${active.quality}` : ''}</p>
+              <h2 className="text-xl font-bold">{active.name}</h2>
+              <p className="text-white/40 text-sm">{active.country ?? '—'}{active.quality ? ` · ${active.quality}` : ''}</p>
             </div>
-            <button onClick={() => setActive(null)} className="btn-ghost text-sm px-3 py-1.5">✕ Close</button>
+            <button onClick={() => setActive(null)} className={yBtn}>✕ Close</button>
           </div>
           <div className="aspect-video bg-black rounded-xl overflow-hidden">
             <HlsPlayer key={active.id} src={active.proxied_url} />
@@ -44,17 +45,17 @@ export default function Replays() {
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-sm text-white/50 mb-5 cursor-pointer w-fit">
+      <label className="flex items-center gap-2 text-base text-white/60 mb-5 cursor-pointer w-fit">
         <input type="checkbox" checked={showOffline} onChange={(e) => setShowOffline(e.target.checked)} />
         Show offline channels too
       </label>
 
       {loading ? (
-        <div className="text-white/30 text-center py-16">Checking channels…</div>
+        <div className="text-white/30 text-center py-16 text-lg">Checking channels…</div>
       ) : error ? (
-        <div className="text-red-400 text-center py-16">{error}</div>
+        <div className="text-red-400 text-center py-16 text-lg">{error}</div>
       ) : channels.length === 0 ? (
-        <p className="text-white/30 text-sm">No replay channels are live right now.</p>
+        <p className="text-white/30 text-base">No replay channels are live right now.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {channels.map((c) => (
@@ -62,11 +63,11 @@ export default function Replays() {
               key={c.id}
               onClick={() => c.alive && setActive(c)}
               disabled={!c.alive}
-              className={`card text-left p-4 transition-transform ${
+              className={`card text-left p-5 transition-transform ${
                 c.alive ? 'hover:scale-[1.01]' : 'opacity-50 cursor-not-allowed'
-              } ${active?.id === c.id ? 'border-green-500' : ''}`}
+              } ${active?.id === c.id ? 'border-yellow-400' : ''}`}
             >
-              <div className="flex items-center justify-between mb-3 text-xs">
+              <div className="flex items-center justify-between mb-3 text-sm">
                 <span className="text-white/40">{c.country ?? '—'}</span>
                 {c.alive ? (
                   <span className="flex items-center gap-1 text-green-400">
@@ -79,9 +80,9 @@ export default function Replays() {
                 )}
               </div>
               <div className="flex flex-col items-center gap-2 py-3">
-                <span className="text-3xl">🎞️</span>
-                <span className="text-base font-bold text-green-400 text-center">{c.name}</span>
-                <span className="text-xs text-white/40">{c.alive ? (c.quality ?? 'Click to watch') : 'Currently unavailable'}</span>
+                <Clapperboard size={30} className="text-yellow-400" />
+                <span className="text-lg font-bold text-center">{c.name}</span>
+                <span className="text-sm text-white/40">{c.alive ? (c.quality ?? 'Click to watch') : 'Currently unavailable'}</span>
               </div>
             </button>
           ))}

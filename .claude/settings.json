@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.scorebat.com)",
+      "WebFetch(domain:www.football-data.org)",
+      "Bash(curl -s -m 20 http://localhost:8000/api/video/feed?limit=3 -w '\\\\nHTTP %{http_code}\\\\n')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Ligue 1 matches:', len\\(d\\)\\); print\\(set\\(m['competition'] for m in d\\)\\)\")",
+      "Bash(curl -s -m 90 http://localhost:8000/api/iptv/for-league/WC)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); a=sum\\(1 for c in d if c['alive']\\); print\\(f'total {len\\(d\\)}, alive {a}, offline {len\\(d\\)-a}'\\)\")",
+      "Bash(curl -s -m 120 http://localhost:8000/api/iptv/for-league/CL)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('alive channels for PL:', len\\(d\\)\\); [print\\(' ✓', c['name'], c['country']\\) for c in d]\")",
+      "Bash(python \"C:/Users/aungt/AppData/Local/Temp/claude/c--OneDriveData-OneDrive-Documents-Lincoln-College-Classes-Sem-1-Projects-GoalStream/cd339465-6143-4183-ac61-ee9fb68214bd/scratchpad/check_leagues.py\")",
+      "Bash(curl -s -m 8 -o /dev/null -w \"Navbar.jsx -> HTTP %{http_code}\\\\n\" \"http://localhost:3000/src/components/Navbar.jsx\")",
+      "Bash(curl -s -m 15 \"http://localhost:8000/api/video/feed?limit=1\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(repr\\(d[0]['embed']\\)[:600] if d else 'none'\\); print\\('---matchview---'\\); print\\(d[0]['matchview_url'] if d else ''\\)\")",
+      "Bash(curl -s -m 10 -o /dev/null -w \"Live.jsx -> HTTP %{http_code}\\\\n\" \"http://localhost:3000/src/pages/Live.jsx\")",
+      "Bash(curl -s -m 15 \"http://localhost:8000/api/iptv/featured\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('playing now:',len\\(d\\)\\);[print\\(' ',c['name'],c['country']\\) for c in d[:8]]\")",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

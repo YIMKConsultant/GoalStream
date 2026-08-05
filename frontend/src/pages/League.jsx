@@ -48,7 +48,7 @@ export default function League() {
       {!loading && upcoming.length > 0 && (
         <section className="mb-6">
           <h2 className="text-lg font-bold mb-3 text-blue-400">Upcoming Games</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {upcoming.map((m) => <MatchCard key={m.id} match={m} />)}
           </div>
         </section>
@@ -78,7 +78,7 @@ export default function League() {
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <span className="live-dot" /> Live
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                 {live.map((m) => <MatchCard key={m.id} match={m} />)}
               </div>
             </section>
@@ -86,7 +86,7 @@ export default function League() {
           {finished.length > 0 && (
             <section>
               <h2 className="text-lg font-bold mb-3 text-white/80">Results</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                 {finished.map((m) => <MatchCard key={m.id} match={m} />)}
               </div>
             </section>
