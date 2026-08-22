@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-export default function Register() {
-  const { register } = useAuth()
+export default function Signup() {
+  const { signup } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState('')
@@ -16,7 +16,7 @@ export default function Register() {
     setError('')
     setLoading(true)
     try {
-      await register(form.username, form.email, form.password)
+      await signup(form.username, form.email, form.password)
       navigate('/')
     } catch (err) {
       setError(err)
@@ -28,8 +28,10 @@ export default function Register() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-md card p-8">
-        <h1 className="text-2xl font-bold mb-1">Create account</h1>
-        <p className="text-white/40 text-sm mb-6">Free forever — no credit card needed</p>
+        <h1 className="text-2xl font-bold mb-1">Sign up</h1>
+        <p className="text-white/40 text-sm mb-6">
+          Free forever — an account just saves your favourite teams.
+        </p>
 
         {error && <div className="bg-red-900/30 border border-red-700 text-red-300 text-sm px-4 py-2 rounded-lg mb-4">{error}</div>}
 
@@ -53,12 +55,15 @@ export default function Register() {
             />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-center disabled:opacity-60">
-            {loading ? 'Creating account…' : 'Create account'}
+            {loading ? 'Creating account…' : 'Sign up'}
           </button>
         </form>
 
         <p className="text-center text-white/40 text-sm mt-6">
-          Have an account? <Link to="/login" className="text-green-400 hover:underline">Login</Link>
+          Already have an account? <Link to="/login" className="text-green-400 hover:underline">Sign in</Link>
+        </p>
+        <p className="text-center text-white/30 text-sm mt-2">
+          <Link to="/" className="hover:text-yellow-300">Keep watching without an account →</Link>
         </p>
       </div>
     </div>

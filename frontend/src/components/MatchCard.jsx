@@ -1,21 +1,5 @@
 import { Link } from 'react-router-dom'
-
-const STATUS_LABEL = {
-  IN_PLAY:   { text: 'LIVE',      cls: 'bg-red-600 animate-pulse' },
-  PAUSED:    { text: 'HT',        cls: 'bg-yellow-500 text-pitch-900' },
-  FINISHED:  { text: 'FT',        cls: 'bg-white/20' },
-  SCHEDULED: { text: 'UPCOMING',  cls: 'bg-blue-700' },
-  POSTPONED: { text: 'POSTPONED', cls: 'bg-gray-600' },
-}
-
-function formatDateTime(utcDate) {
-  if (!utcDate) return { time: '', date: '' }
-  const d = new Date(utcDate)
-  return {
-    time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    date: d.toLocaleDateString([], { day: '2-digit', month: 'short' }),
-  }
-}
+import { badge as statusBadge, isUpcoming, kickoffTime, kickoffDate } from '../lib/matchStatus'
 
 // One team as a centered column: crest above, name below.
 function Team({ team }) {
@@ -32,11 +16,14 @@ function Team({ team }) {
 }
 
 export default function MatchCard({ match }) {
-  const badge = STATUS_LABEL[match.status] ?? { text: match.status, cls: 'bg-white/20' }
+  const badge = statusBadge(match.status)
   const home = match.score?.fullTime?.home
   const away = match.score?.fullTime?.away
-  const scheduled = match.status === 'SCHEDULED'
-  const { time, date } = formatDateTime(match.utcDate)
+  // Covers SCHEDULED and TIMED — a TIMED fixture used to fall through and render
+  // a 0:0 scoreline instead of its kickoff time.
+  const scheduled = isUpcoming(match)
+  const time = kickoffTime(match.utcDate)
+  const date = kickoffDate(match.utcDate)
 
   return (
     <Link

@@ -11,6 +11,9 @@ referrer / user_agent carried in streams.json — which is why the playable URL
 is served through /api/proxy/stream (see routers/proxy.py).
 """
 import asyncio
+import contextlib
+from urllib.parse import urlparse
+
 import httpx
 from cachetools import TTLCache
 
@@ -113,7 +116,54 @@ _GLOBAL_FOOTBALL = [
     # Confirmed present + carrying live football in the free catalog.
     "sport tv", "setanta", "goltv", "match!", "okko futbol",
     "tyc sports", "sport1", "sport 1",
+    # Carriers for the Saudi / MLS / African competitions.
+    "canal+ sport", "espn deportes", "arryadia",
 ]
+
+# Sports channels that are emphatically NOT going to show a football match.
+# The country fallback below sweeps in every sports channel from a competition's
+# country, which is how "Where to watch Eredivisie" ended up offering FightBox
+# and Fast&FunBox. Verified against the live catalog: these 28 substrings remove
+# only golf/tennis/cricket/darts/poker/combat feeds, and leave football's
+# "Sportitalia" while dropping "Sportitalia Motori".
+_NON_FOOTBALL = [
+    "fight", "funbox", "wwe", "ufc", "mma", "boxing", "combate", "poker",
+    "motor", "golf", "tennis", "darts", "snooker", "fishing", "wrestl",
+    "nascar", "billiard", "cricket", "rugby", "introuble", "chess",
+]
+
+
+def _is_football(name: str) -> bool:
+    lowered = name.lower()
+    return not any(k in lowered for k in _NON_FOOTBALL)
+
+
+# ── Geo-block memory ────────────────────────────────────────────────────────
+#
+# A liveness check fetches the master playlist, which many broadcasters serve
+# worldwide even when the video itself is territorially licensed. Esport3 (the
+# Catalan public broadcaster) is the clean example: master.m3u8 returns 200
+# everywhere, but during rights-restricted programming the playlist switches to
+# `geo-*.ts` segments that 403 outside Spain. The channel looks alive, then dies
+# the moment you press play.
+#
+# We can't afford to walk master -> variant -> segment for every channel on
+# every sweep. Instead the proxy tells us when a host actually refused a
+# segment, and we drop that host from listings for a while.
+_blocked_hosts: TTLCache = TTLCache(maxsize=256, ttl=1800)   # 30 min
+
+
+def note_blocked_host(url: str) -> None:
+    """Called by the proxy when upstream refuses us (403/451)."""
+    with contextlib.suppress(Exception):
+        _blocked_hosts[urlparse(url).hostname or ""] = True
+
+
+def is_blocked_host(url: str) -> bool:
+    with contextlib.suppress(Exception):
+        return (urlparse(url).hostname or "") in _blocked_hosts
+    return False
+
 
 # Per-competition: country codes + extra broadcaster name-substrings.
 _LEAGUE_HINTS: dict[str, dict] = {
@@ -128,6 +178,25 @@ _LEAGUE_HINTS: dict[str, dict] = {
     "FL1": {"countries": {"FR"},     "names": []},
     "DED": {"countries": {"NL"},     "names": ["ziggo sport"]},
     "PPL": {"countries": {"PT"},     "names": ["sport tv"]},
+    # Added competitions. Some names below match nothing in today's catalog
+    # (SSC, SuperSport, TUDN are paywalled) — they cost nothing and start
+    # working the day iptv-org picks those broadcasters up. Substrings must stay
+    # distinctive: "on sport" was dropped because it also matches
+    # "Cytavis-ion Sport-s" and "Multivis-ion Sport-s".
+    "SPL":  {"countries": {"SA"},    "names": ["ssc", "saudi", "thmanyah", "bein"]},
+    "MLS":  {"countries": {"US", "CA"}, "names": ["mls", "tudn", "espn deportes", "fox sports"]},
+    "CAFP": {"countries": {"EG", "MA", "DZ", "TN", "NG", "ZA", "SN", "CM"},
+             "names": ["canal+ sport", "supersport", "bein", "arryadia", "on time sport"]},
+    "CAFW": {"countries": {"EG", "MA", "DZ", "TN", "NG", "ZA", "SN", "CM"},
+             "names": ["canal+ sport", "supersport", "arryadia"]},
+    "WWC":  {"countries": set(),     "names": []},                      # broadly carried
+    # Brasileirão shows up in the free-tier fixture feed most days, so it needs
+    # carriers too. Premiere FC / SporTV are the pay broadcasters (present but
+    # offline in the free catalog); CazeTV and ESPN Brasil actually serve.
+    # "n sports" is deliberately absent: it also matches "Bahrai-n Sports",
+    # "Multivisio-n Sports" and "More Tha-n Sports". Keep substrings distinctive.
+    "BSA":  {"countries": {"BR"},    "names": ["cazetv", "premiere fc", "sportv",
+                                               "band sports", "ge fast"]},
 }
 
 
@@ -146,7 +215,7 @@ async def get_playing_channels() -> list[dict]:
 
     chans = [
         c for c in await get_sports_channels()
-        if any(k in c["name"].lower() for k in _GLOBAL_FOOTBALL)
+        if any(k in c["name"].lower() for k in _GLOBAL_FOOTBALL) and _is_football(c["name"])
     ]
     statuses = await asyncio.gather(*[
         check_stream_alive(c["url"], c.get("referrer"), c.get("user_agent"))
@@ -161,8 +230,33 @@ async def get_playing_channels() -> list[dict]:
     return alive
 
 
+async def get_channels_for_league_ids(
+    channel_ids: list[str], only_alive: bool = True
+) -> list[dict]:
+    """
+    Resolve an explicit, ordered list of channel ids (an AI-built league map)
+    to live channels. Order is preserved — the map is already ranked — so this
+    skips the keyword heuristic entirely.
+    """
+    catalog = {c["id"]: c for c in await get_sports_channels()}
+    candidates = [catalog[cid] for cid in channel_ids if cid in catalog]
+    if not candidates:
+        return []
+
+    statuses = await asyncio.gather(*[
+        check_stream_alive(c["url"], c.get("referrer"), c.get("user_agent"))
+        for c in candidates
+    ])
+    tagged = [
+        {**c, "alive": s["alive"], "status": s["status"], "match_reason": "ai_match"}
+        for c, s in zip(candidates, statuses)
+    ]
+    tagged.sort(key=lambda c: not c["alive"])   # working ones first, rank preserved within
+    return [c for c in tagged if c["alive"]] if only_alive else tagged
+
+
 async def get_channels_for_league(
-    league_code: str, limit: int = 20, only_alive: bool = True
+    league_code: str, limit: int = 32, only_alive: bool = True
 ) -> list[dict]:
     """
     Best-effort list of channels that may be broadcasting the given league,
@@ -180,27 +274,50 @@ async def get_channels_for_league(
     scored = []
     for ch in await get_sports_channels():
         name = ch["name"].lower()
-        if league_names and any(k in name for k in league_names):
-            priority = 0                                   # league-specific broadcaster
-        elif countries and ch.get("country") in countries:
-            priority = 1                                   # right country
+        if not _is_football(ch["name"]):
+            continue                                       # golf/darts/combat — never football
+
+        named = bool(league_names) and any(k in name for k in league_names)
+        in_country = bool(countries) and ch.get("country") in countries
+
+        # Name AND country beats name alone: "sport tv" matches both Portugal's
+        # Sport TV (who actually hold Primeira Liga) and Moldova's "We Sport TV".
+        # Without the country tiebreak the wrong one can end up first and be
+        # what auto-plays.
+        if named and in_country:
+            priority = 0                                   # the league's own broadcaster
+        elif named:
+            priority = 1                                   # right name, wrong country
+        elif in_country:
+            priority = 2                                   # other sports channel from there
         elif any(k in name for k in _GLOBAL_FOOTBALL):
-            priority = 2                                   # generic football broadcaster
+            priority = 3                                   # generic football broadcaster
         else:
             continue
         scored.append((priority, ch["name"], ch))
 
+    # Surface WHY each channel is here. Without this the UI can't distinguish
+    # Portugal's Sport TV (the actual Primeira Liga rights holder) from Arena
+    # Sport Slovakia, which is only here because it shows football in general —
+    # and presenting the second as if it were the first is misleading.
+    _reason = {
+        0: "league_broadcaster",
+        1: "broadcaster_elsewhere",
+        2: "same_country",
+        3: "general_football",
+    }
+
     scored.sort(key=lambda t: (t[0], t[1]))
-    candidates = [ch for _, _, ch in scored[:limit]]
+    candidates = [(prio, ch) for prio, _, ch in scored[:limit]]
 
     # Verify each candidate is actually serving before offering it to the player.
     statuses = await asyncio.gather(*[
         check_stream_alive(c["url"], c.get("referrer"), c.get("user_agent"))
-        for c in candidates
+        for _, c in candidates
     ])
     tagged = [
-        {**c, "alive": s["alive"], "status": s["status"]}
-        for c, s in zip(candidates, statuses)
+        {**c, "alive": s["alive"], "status": s["status"], "match_reason": _reason[prio]}
+        for (prio, c), s in zip(candidates, statuses)
     ]
     # Keep broadcaster priority, but float the ones that actually work to the top.
     tagged.sort(key=lambda c: not c["alive"])

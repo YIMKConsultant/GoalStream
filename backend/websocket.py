@@ -6,6 +6,7 @@ import asyncio
 import json
 from typing import Set
 from fastapi import WebSocket, WebSocketDisconnect
+from services import presence
 from services.football_api import get_live_matches
 
 connected: Set[WebSocket] = set()
@@ -34,6 +35,14 @@ async def live_scores_ws(websocket: WebSocket):
     await websocket.accept()
     connected.add(websocket)
 
+    headers = websocket.headers
+    viewer_ip = presence.client_ip(
+        headers, websocket.client.host if websocket.client else None
+    )
+    presence.touch(viewer_ip, path="/ws/live",
+                   country_hint=headers.get("cf-ipcountry"),
+                   user_agent=headers.get("user-agent", ""))
+
     if _task is None or _task.done():
         _task = asyncio.create_task(_broadcast_live_scores())
 
@@ -41,6 +50,8 @@ async def live_scores_ws(websocket: WebSocket):
         while True:
             # Keep alive — client can send "ping"
             data = await websocket.receive_text()
+            # A ping keeps the socket AND the viewer's presence entry alive.
+            presence.touch(viewer_ip, path="/ws/live")
             if data == "ping":
                 await websocket.send_text(json.dumps({"event": "pong"}))
     except WebSocketDisconnect:

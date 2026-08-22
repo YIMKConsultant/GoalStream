@@ -1,4 +1,4 @@
-import { Routes, Route, Outlet } from 'react-router-dom'
+import { Routes, Route, Outlet, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import League from './pages/League'
@@ -10,7 +10,13 @@ import Videos from './pages/Videos'
 import Leagues from './pages/Leagues'
 import Featured from './pages/Featured'
 import Login from './pages/Login'
-import Register from './pages/Register'
+import Signup from './pages/Signup'
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminChannels from './pages/admin/AdminChannels'
+import AdminSettings from './pages/admin/AdminSettings'
+import AdminAI from './pages/admin/AdminAI'
 
 // App shell — sidebar + scrollable content area.
 function Shell() {
@@ -39,8 +45,19 @@ export default function App() {
         <Route path="/league/:code"  element={<League />} />
         <Route path="/match/:id"     element={<Match />} />
       </Route>
+      {/* Admin console — its own shell, gated in AdminLayout. */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index             element={<AdminOverview />} />
+        <Route path="users"      element={<AdminUsers />} />
+        <Route path="channels"   element={<AdminChannels />} />
+        <Route path="ai"         element={<AdminAI />} />
+        <Route path="settings"   element={<AdminSettings />} />
+      </Route>
+
+      {/* Every route above is open — an account is only needed for favourites. */}
       <Route path="/login"    element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/signup"   element={<Signup />} />
+      <Route path="/register" element={<Navigate to="/signup" replace />} />
     </Routes>
   )
 }

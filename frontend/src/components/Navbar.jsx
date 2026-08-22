@@ -12,7 +12,12 @@ const LEAGUES = [
   { code: 'BL1', name: 'Bundesliga' },
   { code: 'SA',  name: 'Serie A' },
   { code: 'FL1', name: 'Ligue 1' },
+  { code: 'SPL', name: 'Saudi Pro League' },
+  { code: 'MLS', name: 'Major League Soccer' },
+  { code: 'CAFP', name: 'CAF Premier League' },
+  { code: 'CAFW', name: "CAF Women's CL" },
   { code: 'WC',  name: 'World Cup' },
+  { code: 'WWC', name: "FIFA Women's World Cup" },
 ]
 
 const CONTACT_EMAIL = 'yimkeducationalconsultant@gmail.com'
@@ -111,9 +116,9 @@ export default function Navbar() {
           ) : (
             <>
               <Link to="/login" className="text-sm py-1.5 px-4 rounded-lg border border-white/15 text-white/70 hover:border-yellow-400 hover:text-yellow-300 transition-colors">
-                Login
+                Sign In
               </Link>
-              <Link to="/register" className="text-sm py-1.5 px-4 rounded-lg bg-yellow-400 text-pitch-900 font-semibold hover:bg-yellow-300 transition-colors">
+              <Link to="/signup" className="text-sm py-1.5 px-4 rounded-lg bg-yellow-400 text-pitch-900 font-semibold hover:bg-yellow-300 transition-colors">
                 Sign Up
               </Link>
             </>

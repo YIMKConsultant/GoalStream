@@ -15,8 +15,8 @@ export function AuthProvider({ children }) {
     setUser(data.user)
   }, [])
 
-  const register = useCallback(async (username, email, password) => {
-    const data = await api.post('/auth/register', { username, email, password })
+  const signup = useCallback(async (username, email, password) => {
+    const data = await api.post('/auth/signup', { username, email, password })
     localStorage.setItem('token', data.access_token)
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   )

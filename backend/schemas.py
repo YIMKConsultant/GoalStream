@@ -21,6 +21,8 @@ class UserOut(BaseModel):
     username: str
     email: str
     is_admin: bool
+    is_superuser: bool = False
+    tier: str = "free"
     created_at: datetime
 
     class Config:
@@ -40,6 +42,7 @@ class LeagueOut(BaseModel):
     name: str
     country: str
     emblem: str
+    fixtures: bool = True    # False -> browsable, but the data provider has no feed
 
 
 # ── Matches ───────────────────────────────────────────────────────────────────
@@ -143,3 +146,73 @@ class StandingsOut(BaseModel):
     league_name: str
     season: str
     table: List[StandingTeam]
+
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
+
+class AdminUserOut(BaseModel):
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    is_admin: bool
+    is_superuser: bool
+    tier: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserUpdate(BaseModel):
+    """Every field optional — only what's sent gets changed."""
+    tier: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+
+
+class AdminChannelOut(BaseModel):
+    id: str
+    name: str
+    country: Optional[str] = None
+    tier: str
+    hidden: bool = False
+    note: str = ""
+    customised: bool = False    # False -> inheriting the default, no policy row
+
+
+class ChannelPolicyIn(BaseModel):
+    tier: str = "public"
+    hidden: bool = False
+    note: str = ""
+
+
+class GrantIn(BaseModel):
+    mode: str = "allow"         # allow | block
+
+
+class GrantOut(BaseModel):
+    id: int
+    user_id: int
+    channel_id: str
+    mode: str
+
+    class Config:
+        from_attributes = True
+
+
+class SettingValueOut(BaseModel):
+    key: str
+    label: str
+    secret: bool
+    value: str                  # masked when secret is True
+    overridden: bool            # True -> a DB override is shadowing .env
+
+
+class SettingsOut(BaseModel):
+    settings: List[SettingValueOut]
+
+
+class SettingsIn(BaseModel):
+    values: dict[str, str]

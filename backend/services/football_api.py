@@ -6,11 +6,25 @@ Sign up at https://www.football-data.org/ to get your free API key.
 import httpx
 from typing import Optional
 from cachetools import TTLCache
-from config import settings, LEAGUES
+from config import LEAGUES
+from services import settings_store
 
 _cache: TTLCache = TTLCache(maxsize=256, ttl=60)   # 60-second cache to respect rate limits
-_headers = {"X-Auth-Token": settings.football_api_key}
-BASE = settings.football_api_base_url
+
+
+# Read credentials per request, never at import: a superuser can swap the key
+# from the admin dashboard and it has to take effect without a restart.
+def _auth_headers() -> dict:
+    return {"X-Auth-Token": settings_store.football_api_key()}
+
+
+def _base_url() -> str:
+    return settings_store.football_api_base_url()
+
+
+def clear_cache() -> None:
+    """Drop cached responses — called after the API credentials change."""
+    _cache.clear()
 
 
 def _cached(key: str):
@@ -29,7 +43,7 @@ async def _get(path: str) -> dict:
         return cached
 
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(f"{BASE}{path}", headers=_headers)
+        resp = await client.get(f"{_base_url()}{path}", headers=_auth_headers())
         resp.raise_for_status()
         data = resp.json()
         return _store(key, data)
@@ -111,7 +125,11 @@ async def get_team_matches(team_id: int, status: str = "") -> list:
 async def search_teams(name: str) -> list:
     """Search across all supported leagues for teams matching name."""
     results = []
-    for code in LEAGUES:
+    # Only leagues the provider actually serves — the rest would burn the
+    # 10 req/min budget on guaranteed 403s.
+    for code, meta in LEAGUES.items():
+        if not meta.get("fixtures", True):
+            continue
         try:
             data = await _get(f"/competitions/{code}/teams")
             for team in data.get("teams", []):

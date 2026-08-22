@@ -38,11 +38,19 @@ async def search(q: str):
     return await search_teams(q)
 
 
+def _league(league_code: str) -> tuple[str, dict]:
+    code = league_code.upper()
+    meta = LEAGUES.get(code)
+    if meta is None:
+        raise HTTPException(status_code=404, detail=f"League '{code}' not supported")
+    return code, meta
+
+
 @router.get("/{league_code}/matches", response_model=List[MatchOut])
 async def league_matches(league_code: str, matchday: Optional[int] = None):
-    code = league_code.upper()
-    if code not in LEAGUES:
-        raise HTTPException(status_code=404, detail=f"League '{code}' not supported")
+    code, meta = _league(league_code)
+    if not meta.get("fixtures", True):
+        return []          # browsable competition, no fixture feed behind it
     try:
         return await get_matches_by_league(code, matchday)
     except Exception as exc:
@@ -51,9 +59,9 @@ async def league_matches(league_code: str, matchday: Optional[int] = None):
 
 @router.get("/{league_code}/standings", response_model=StandingsOut)
 async def league_standings(league_code: str):
-    code = league_code.upper()
-    if code not in LEAGUES:
-        raise HTTPException(status_code=404, detail=f"League '{code}' not supported")
+    code, meta = _league(league_code)
+    if not meta.get("fixtures", True):
+        return {"league_code": code, "league_name": meta["name"], "season": "", "table": []}
     try:
         return await get_standings(code)
     except Exception as exc:

@@ -11,6 +11,7 @@ export function HlsPlayer({ src }) {
     setError('')
     const video = videoRef.current
     if (!video) return
+    const cleanup = []
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -31,26 +32,66 @@ export function HlsPlayer({ src }) {
         },
       })
 
-      // Recover from transient fatal errors instead of killing the stream.
+      // Recovering the stream is only half the job — the <video> element stays
+      // paused after a stall, so every recovery path must also resume playback
+      // or the picture freezes with no error shown.
+      //
+      // But a deliberate pause must stick. A `pause` event means the viewer hit
+      // pause: a buffer stall fires `waiting` and leaves paused === false. So
+      // `pause` is the signal to stop auto-resuming until they press play again.
+      let userPaused = false
+      const resume = () => { if (!userPaused) video.play().catch(() => {}) }
+
       let netRecover = 0
       let mediaRecover = 0
       hls.on(Hls.Events.ERROR, (_, data) => {
-        if (!data.fatal) return
+        // Non-fatal buffer stalls are the common case on flaky free restreams:
+        // hls.js keeps the session but the element has already paused.
+        if (!data.fatal) {
+          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            try { hls.startLoad() } catch {}
+            resume()
+          }
+          return
+        }
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
           if (netRecover++ < 5) {
-            setTimeout(() => { try { hls.startLoad() } catch {} }, 1500)
+            setTimeout(() => { try { hls.startLoad(); resume() } catch {} }, 1500)
           } else {
             setError(`Stream error: ${data.type} — ${data.details}`)
           }
         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
           if (mediaRecover++ < 3) {
-            try { hls.recoverMediaError() } catch {}
+            try { hls.recoverMediaError(); resume() } catch {}
           } else {
             setError(`Stream error: ${data.type} — ${data.details}`)
           }
         } else {
           setError(`Stream error: ${data.type} — ${data.details}`)
         }
+      })
+
+      const onPause = () => { userPaused = true }
+      const onPlay = () => {
+        userPaused = false
+        // A live stream drifts out of the playlist window while paused — the
+        // server drops those segments, so resuming where we left off stalls.
+        // Jump to the live edge, but only after a real gap, so a quick
+        // pause/play doesn't skip the viewer forward for no reason.
+        try {
+          const edge = hls.liveSyncPosition
+          if (edge == null || edge - video.currentTime <= 30) return
+          const seekable = video.seekable
+          if (seekable.length && edge <= seekable.end(seekable.length - 1)) {
+            video.currentTime = edge
+          }
+        } catch {}
+      }
+      video.addEventListener('pause', onPause)
+      video.addEventListener('play', onPlay)
+      cleanup.push(() => {
+        video.removeEventListener('pause', onPause)
+        video.removeEventListener('play', onPlay)
       })
       // A clean fragment load resets the recovery counters, so a stream that
       // hiccups every few minutes keeps healing instead of exhausting retries.
@@ -59,7 +100,7 @@ export function HlsPlayer({ src }) {
       hls.loadSource(src)
       hls.attachMedia(video)
       hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}))
-      return () => hls.destroy()
+      return () => { cleanup.forEach((fn) => fn()); hls.destroy() }
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
       video.play().catch(() => {})

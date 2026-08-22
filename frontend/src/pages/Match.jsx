@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import api from '../api/client'
 import StreamPlayer from '../components/StreamPlayer'
-import WatchOfficial from '../components/WatchOfficial'
+import LeagueChannels from '../components/LeagueChannels'
 
 const STATUS_COLOR = {
-  IN_PLAY: 'text-red-400', PAUSED: 'text-yellow-400',
-  FINISHED: 'text-white/40', SCHEDULED: 'text-blue-400',
+  IN_PLAY: 'text-red-400', PAUSED: 'text-yellow-400', LIVE: 'text-red-400',
+  FINISHED: 'text-white/40', SCHEDULED: 'text-blue-400', TIMED: 'text-blue-400',
 }
 
 function formatDate(utcDate) {
@@ -94,16 +94,25 @@ export default function Match() {
         </div>
       )}
 
-      {/* Stream player */}
+      {/* Stream player — an admin-added stream for this exact match wins;
+          otherwise fall back to the channels that carry the competition, so
+          there's something to watch instead of an empty box. */}
       <div className="mb-6">
-        <h2 className="text-lg font-bold mb-3">
-          {streams.length > 0 ? `Watch — ${streams.length} stream${streams.length > 1 ? 's' : ''} available` : 'Stream'}
+        <h2 className="text-lg font-bold mb-1">
+          {streams.length > 0
+            ? `Watch — ${streams.length} stream${streams.length > 1 ? 's' : ''} available`
+            : 'Live channels for this league'}
         </h2>
-        <StreamPlayer streams={streams} />
+        {streams.length === 0 && (
+          <p className="text-white/40 text-sm mb-3">
+            No dedicated stream for this match{match?.status === 'SCHEDULED' || match?.status === 'TIMED'
+              ? ' yet' : ''} — here are the free channels carrying {match?.league_name ?? 'this competition'} right now.
+          </p>
+        )}
+        {streams.length > 0
+          ? <StreamPlayer streams={streams} />
+          : <LeagueChannels leagueCode={match?.league_code} />}
       </div>
-
-      {/* Legal broadcaster deep-links */}
-      {match && <WatchOfficial match={match} />}
 
     </div>
   )

@@ -3,11 +3,15 @@ import { useParams, Link } from 'react-router-dom'
 import api from '../api/client'
 import MatchCard from '../components/MatchCard'
 import StandingsTable from '../components/StandingsTable'
+import { isLive, isUpcoming, isFinished } from '../lib/matchStatus'
 
 const LEAGUE_NAMES = {
   PL: 'Premier League', CL: 'Champions League', EL: 'Europa League',
   ECL: 'Conference League', PD: 'La Liga', BL1: 'Bundesliga',
   SA: 'Serie A', FL1: 'Ligue 1', DED: 'Eredivisie', PPL: 'Primeira Liga',
+  WC: 'FIFA World Cup', SPL: 'Saudi Pro League', MLS: 'Major League Soccer',
+  CAFP: 'CAF Premier League', CAFW: "CAF Women's Champions League",
+  WWC: "FIFA Women's World Cup",
 }
 
 export default function League() {
@@ -16,6 +20,13 @@ export default function League() {
   const [matches, setMatches] = useState([])
   const [standings, setStandings] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [meta, setMeta] = useState(null)
+
+  useEffect(() => {
+    api.get('/leagues')
+      .then((all) => setMeta(all.find((l) => l.code === code) ?? null))
+      .catch(() => setMeta(null))
+  }, [code])
 
   useEffect(() => {
     setLoading(true)
@@ -24,6 +35,7 @@ export default function League() {
     setTab('matches')
     api.get(`/leagues/${code}/matches`)
       .then(setMatches)
+      .catch(() => setMatches([]))
       .finally(() => setLoading(false))
   }, [code])
 
@@ -31,18 +43,30 @@ export default function League() {
     if (standings) { setTab('standings'); return }
     api.get(`/leagues/${code}/standings`)
       .then((data) => { setStandings(data); setTab('standings') })
+      .catch(() => setTab('standings'))
   }
 
-  const live     = matches.filter((m) => ['IN_PLAY','PAUSED'].includes(m.status))
-  const upcoming = matches.filter((m) => m.status === 'SCHEDULED')
+  const noFeed = meta?.fixtures === false
+
+  const live     = matches.filter(isLive)
+  const upcoming = matches.filter(isUpcoming)
     .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
-  const finished = matches.filter((m) => m.status === 'FINISHED')
+  const finished = matches.filter(isFinished)
     .sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-extrabold mb-1">{LEAGUE_NAMES[code] ?? code}</h1>
+      <h1 className="text-3xl font-extrabold mb-1">{meta?.name ?? LEAGUE_NAMES[code] ?? code}</h1>
       <p className="text-white/40 text-sm mb-6">Current season fixtures &amp; results</p>
+
+      {noFeed && (
+        <div className="mb-6 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-200/90">
+          Our scores provider doesn&apos;t carry this competition, so fixtures and
+          the table are empty here. You can still find it on{' '}
+          <Link to="/live" className="underline hover:text-amber-100">Live</Link> — the
+          channels that normally broadcast it are listed there.
+        </div>
+      )}
 
       {/* Upcoming matches — always visible above tabs */}
       {!loading && upcoming.length > 0 && (
@@ -97,10 +121,14 @@ export default function League() {
         </div>
       )}
 
-      {!loading && tab === 'standings' && standings && (
-        <div className="card p-4">
-          <StandingsTable table={standings.table} />
-        </div>
+      {!loading && tab === 'standings' && (
+        standings?.table?.length ? (
+          <div className="card p-4">
+            <StandingsTable table={standings.table} />
+          </div>
+        ) : (
+          <p className="text-white/30 text-center py-12">No table available for this competition.</p>
+        )
       )}
     </div>
   )

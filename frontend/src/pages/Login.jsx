@@ -28,8 +28,8 @@ export default function Login() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-md card p-8">
-        <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
-        <p className="text-white/40 text-sm mb-6">Log in to watch matches</p>
+        <h1 className="text-2xl font-bold mb-1">Sign in</h1>
+        <p className="text-white/40 text-sm mb-6">Welcome back to GoalStream</p>
 
         {error && <div className="bg-red-900/30 border border-red-700 text-red-300 text-sm px-4 py-2 rounded-lg mb-4">{error}</div>}
 
@@ -49,12 +49,15 @@ export default function Login() {
             />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-center disabled:opacity-60">
-            {loading ? 'Logging in…' : 'Login'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
         <p className="text-center text-white/40 text-sm mt-6">
-          No account? <Link to="/register" className="text-green-400 hover:underline">Sign up</Link>
+          No account? <Link to="/signup" className="text-green-400 hover:underline">Sign up</Link>
+        </p>
+        <p className="text-center text-white/30 text-sm mt-2">
+          <Link to="/" className="hover:text-yellow-300">Keep watching without an account →</Link>
         </p>
       </div>
     </div>

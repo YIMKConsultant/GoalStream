@@ -1,5 +1,5 @@
 import { NavLink, Link, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, MonitorPlay, Clapperboard, Trophy, Star, Mail, Radio, LogOut, LogIn } from 'lucide-react'
+import { LayoutDashboard, MonitorPlay, Clapperboard, Trophy, Star, Mail, Radio, LogOut, LogIn, ShieldCheck } from 'lucide-react'
 import ballLogo from '../assets/Soccer.avif'
 import { useAuth } from '../context/AuthContext'
 
@@ -71,18 +71,31 @@ export default function Sidebar() {
         </span>
       </Link>
 
-      {/* Account */}
+      {/* Account — signing in is optional, everything is watchable without it. */}
       <div className="mt-4 pt-4 border-t border-white/5">
         {user ? (
-          <div className="flex items-center justify-between px-2">
-            <span className="text-[22px] font-bold text-white/70 truncate">{user.username}</span>
-            <button onClick={handleLogout} title="Log out" className="text-white/40 hover:text-yellow-300 transition-colors">
-              <LogOut size={28} />
-            </button>
-          </div>
+          <>
+            {(user.is_admin || user.is_superuser) && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-3 px-2 py-2 mb-2 rounded-lg text-[20px] font-bold text-yellow-300/80 hover:text-yellow-300 hover:bg-white/5 transition-colors"
+              >
+                <ShieldCheck size={26} strokeWidth={2.2} /> Admin console
+              </Link>
+            )}
+            <div className="flex items-center justify-between px-2">
+              <span className="text-[22px] font-bold text-white/70 truncate">{user.username}</span>
+              <button onClick={handleLogout} title="Log out" className="text-white/40 hover:text-yellow-300 transition-colors">
+                <LogOut size={28} />
+              </button>
+            </div>
+          </>
         ) : (
-          <Link to="/login" className="flex items-center gap-3 px-2 text-[22px] font-bold text-white/70 hover:text-yellow-300 transition-colors">
-            <LogIn size={28} /> Login
+          <Link
+            to="/login"
+            className="flex items-center justify-center gap-3 w-full rounded-xl bg-yellow-400 text-pitch-900 text-[22px] font-bold px-4 py-3 hover:bg-yellow-300 transition-colors"
+          >
+            <LogIn size={26} strokeWidth={2.4} /> Sign In
           </Link>
         )}
       </div>

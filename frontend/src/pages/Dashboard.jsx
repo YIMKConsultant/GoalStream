@@ -5,29 +5,14 @@ import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useLiveScores } from '../hooks/useLiveScores'
 import VideoEmbed from '../components/VideoEmbed'
-
-const STATUS = {
-  IN_PLAY:   { text: 'LIVE',     cls: 'bg-red-600 animate-pulse' },
-  PAUSED:    { text: 'HT',       cls: 'bg-yellow-500 text-pitch-900' },
-  FINISHED:  { text: 'FT',       cls: 'bg-white/20' },
-  SCHEDULED: { text: 'UPCOMING', cls: 'bg-blue-700' },
-}
-
-function badge(status) {
-  return STATUS[status] ?? { text: status, cls: 'bg-white/20' }
-}
-
-function kickoff(utc) {
-  if (!utc) return ''
-  return new Date(utc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
+import { badge, isLive, kickoffTime as kickoff } from '../lib/matchStatus'
 
 // Big featured match card (the Assassin's Creed / PUBG slot in the template).
 function FeatureMatch({ match }) {
   const b = badge(match.status)
   const h = match.score?.fullTime?.home ?? 0
   const a = match.score?.fullTime?.away ?? 0
-  const live = match.status === 'IN_PLAY' || match.status === 'PAUSED'
+  const live = isLive(match)
   return (
     <Link to={`/match/${match.id}`} className="card block p-5 hover:scale-[1.01] transition-transform">
       <div className="flex items-center justify-between mb-4 text-xs">

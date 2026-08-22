@@ -10,8 +10,9 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
-@router.post("/register", response_model=Token, status_code=201)
-async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
+@router.post("/signup", response_model=Token, status_code=201)
+async def signup(body: UserRegister, db: AsyncSession = Depends(get_db)):
+    """Create an account. Signing up is optional — watching needs no account."""
     existing = await db.execute(
         select(User).where((User.username == body.username) | (User.email == body.email))
     )
@@ -29,6 +30,12 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
 
     token = create_access_token(user.id, user.username)
     return {"access_token": token, "user": user}
+
+
+@router.post("/register", response_model=Token, status_code=201, include_in_schema=False)
+async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
+    """Deprecated alias for /signup — kept so older clients keep working."""
+    return await signup(body, db)
 
 
 @router.post("/login", response_model=Token)
