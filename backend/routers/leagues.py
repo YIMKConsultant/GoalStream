@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
-from config import LEAGUES
+from config import LEAGUES, official_watch
 from schemas import LeagueOut, MatchOut, StandingsOut
 from services.football_api import (
     get_matches_by_league,
@@ -44,6 +44,21 @@ def _league(league_code: str) -> tuple[str, dict]:
     if meta is None:
         raise HTTPException(status_code=404, detail=f"League '{code}' not supported")
     return code, meta
+
+
+@router.get("/{league_code}/watch")
+async def league_watch(league_code: str):
+    """
+    Where this competition can legitimately be watched.
+
+    The free catalog holds no rights holder for any competition, so when a
+    league has nothing playable this is the app's real answer rather than a
+    guessed channel. Malaysian providers lead — see config.OFFICIAL_WATCH.
+    """
+    code = league_code.upper()
+    return {"league_code": code,
+            "league_name": LEAGUES.get(code, {}).get("name", code),
+            "providers": official_watch(code)}
 
 
 @router.get("/{league_code}/matches", response_model=List[MatchOut])

@@ -5,6 +5,7 @@ import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useLiveScores } from '../hooks/useLiveScores'
 import VideoEmbed from '../components/VideoEmbed'
+import LiveNow from '../components/LiveNow'
 import { badge, isLive, kickoffTime as kickoff } from '../lib/matchStatus'
 
 // Big featured match card (the Assassin's Creed / PUBG slot in the template).
@@ -69,6 +70,15 @@ export default function Dashboard() {
   useEffect(() => { api.get('/leagues/today').then(setToday).catch(() => setToday([])) }, [])
   useEffect(() => { api.get('/video/feed?limit=10').then((d) => setHero(d[0] ?? null)).catch(() => {}) }, [])
 
+  // Everything actually in play — the websocket feed topped up with anything
+  // today's fixture list already marks live, since the two can disagree briefly
+  // around kickoff.
+  const liveNow = useMemo(() => {
+    const byId = new Map()
+    for (const m of [...live, ...today.filter(isLive)]) byId.set(m.id, m)
+    return [...byId.values()]
+  }, [live, today])
+
   // Featured = live matches first, then today's upcoming, deduped, top 2.
   const featured = useMemo(() => {
     const seen = new Set()
@@ -131,6 +141,9 @@ export default function Dashboard() {
             </Link>
           </div>
         )}
+
+        {/* Live now — in-play matches with the channels that can show them */}
+        <LiveNow matches={liveNow} />
 
         {/* Two featured matches */}
         <h2 className="text-lg font-bold mb-3">Featured matches</h2>

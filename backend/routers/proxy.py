@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import get_optional_user
 from database import get_db
 from models import User
-from services import access, stream_token
+from services import access, stream_origin, stream_token
 from services.iptv_org import get_channel_stream
 from services.stream_scraper import get_rtm_stream_url
 
@@ -201,6 +201,23 @@ async def proxy_channel(
         raise HTTPException(status_code=502, detail=f"iptv-org API unavailable: {e}")
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found or has no stream")
+
+    # The origin gate lives HERE, not in the listings, because this is the only
+    # endpoint that moves video. A restream filtered out of a league listing is
+    # still reachable by anyone who guesses the channel id, so refusing it at
+    # the listing alone would be decoration rather than a control.
+    origin = channel.get("origin") or stream_origin.classify(channel["url"])
+    if not stream_origin.is_playable(origin):
+        raise HTTPException(
+            status_code=451,
+            detail=(
+                "This channel's stream is not served by the broadcaster or a "
+                "licensed platform, so GoalStream will not relay it."
+                if origin == stream_origin.RESTREAM else
+                "This channel's stream origin has not been verified as licensed, "
+                "so GoalStream will not relay it."
+            ),
+        )
 
     return await _fetch_and_serve(
         channel["url"], channel.get("referrer"), channel.get("user_agent")

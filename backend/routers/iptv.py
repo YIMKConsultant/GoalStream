@@ -33,6 +33,8 @@ class IptvChannel(BaseModel):
     id: str
     name: str
     country: str | None = None
+    languages: list[str] = []   # ISO 639-3 commentary languages, e.g. ["eng"]
+    origin: str = "unverified"  # official | restream | unverified — see stream_origin
     website: str | None = None
     quality: str | None = None
     proxied_url: str            # ready to feed an HLS player
@@ -55,6 +57,8 @@ def _to_model(ch: dict, tier: str = "public") -> IptvChannel:
         id=ch["id"],
         name=ch["name"],
         country=ch.get("country"),
+        languages=ch.get("languages") or [],
+        origin=ch.get("origin") or "unverified",
         website=ch.get("website"),
         quality=ch.get("quality"),
         proxied_url=channel_proxy_url(ch["id"]),

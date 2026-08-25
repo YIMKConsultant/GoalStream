@@ -67,7 +67,14 @@ def tier_rank(tier: str) -> int:
 # wired up — nothing else needs to change.
 LEAGUES = {
     "PL":   {"name": "Premier League",        "country": "England",     "emblem": "", "fixtures": True},
+    # Every competition football-data.org returns from /matches must be listed
+    # here, or it renders on the Live page with a code nothing else can resolve:
+    # `_parse_matches` falls back to the provider's own name, but
+    # /iptv/for-league/{code} then finds no hints and /leagues/{code}/matches
+    # 404s. That is what made every Championship fixture unwatchable.
+    "ELC":  {"name": "Championship",          "country": "England",     "emblem": "", "fixtures": True},
     "CL":   {"name": "UEFA Champions League", "country": "Europe",      "emblem": "", "fixtures": True},
+    "EC":   {"name": "European Championship", "country": "Europe",      "emblem": "", "fixtures": True},
     "EL":   {"name": "UEFA Europa League",    "country": "Europe",      "emblem": "", "fixtures": True},
     "ECL":  {"name": "UEFA Conference League","country": "Europe",      "emblem": "", "fixtures": True},
     "PD":   {"name": "La Liga",               "country": "Spain",       "emblem": "", "fixtures": True},
@@ -76,6 +83,7 @@ LEAGUES = {
     "FL1":  {"name": "Ligue 1",               "country": "France",      "emblem": "", "fixtures": True},
     "DED":  {"name": "Eredivisie",            "country": "Netherlands", "emblem": "", "fixtures": True},
     "PPL":  {"name": "Primeira Liga",         "country": "Portugal",    "emblem": "", "fixtures": True},
+    "BSA":  {"name": "Brasileirão Série A",   "country": "Brazil",      "emblem": "", "fixtures": True},
     "WC":   {"name": "FIFA World Cup",        "country": "World",       "emblem": "", "fixtures": True},
     # Added competitions — football-data.org does not carry these.
     "SPL":  {"name": "Saudi Pro League",      "country": "Saudi Arabia","emblem": "", "fixtures": False},
@@ -84,3 +92,52 @@ LEAGUES = {
     "CAFW": {"name": "CAF Women's Champions League", "country": "Africa", "emblem": "", "fixtures": False},
     "WWC":  {"name": "FIFA Women's World Cup","country": "World",       "emblem": "", "fixtures": False},
 }
+
+
+# Where a competition is LEGITIMATELY watchable, since the free catalog carries
+# no rights holder for any of them (measured: 0 across all 19 leagues).
+#
+# This is the app's actual answer to "where can I watch this". Ordered with the
+# viewer's own region first — GoalStream is used from Malaysia, so sooka/Astro
+# and RTM lead, with the origin-country broadcaster after them for reference.
+# `free` marks the ones that cost nothing, which is what most viewers want to
+# see first.
+OFFICIAL_WATCH = {
+    "_default": [
+        {"name": "sooka", "region": "MY", "url": "https://sooka.my/", "free": False},
+        {"name": "Astro GO", "region": "MY", "url": "https://astrogo.astro.com.my/", "free": False},
+    ],
+    "PL": [
+        {"name": "Astro / sooka VIP+Sports", "region": "MY", "url": "https://sooka.my/", "free": False},
+        {"name": "Sky Sports", "region": "UK", "url": "https://www.skysports.com/", "free": False},
+        {"name": "USA Network / Peacock", "region": "US", "url": "https://www.peacocktv.com/sports/premier-league", "free": False},
+    ],
+    "ELC": [
+        {"name": "Sky Sports", "region": "UK", "url": "https://www.skysports.com/", "free": False},
+        {"name": "ESPN+", "region": "US", "url": "https://plus.espn.com/", "free": False},
+    ],
+    "CL": [
+        {"name": "sooka VIP+Sports", "region": "MY", "url": "https://sooka.my/", "free": False},
+        {"name": "Paramount+", "region": "US", "url": "https://www.paramountplus.com/", "free": False},
+    ],
+    "EL":  [{"name": "sooka VIP+Sports", "region": "MY", "url": "https://sooka.my/", "free": False}],
+    "ECL": [{"name": "sooka VIP+Sports", "region": "MY", "url": "https://sooka.my/", "free": False}],
+    "PD":  [
+        {"name": "Real Madrid TV", "region": "Worldwide", "url": "https://www.realmadrid.com/en/tv", "free": True},
+        {"name": "LaLiga TV / Astro", "region": "MY", "url": "https://sooka.my/", "free": False},
+    ],
+    "BL1": [{"name": "Bundesliga on Astro", "region": "MY", "url": "https://sooka.my/", "free": False}],
+    "SA":  [{"name": "Serie A on Astro", "region": "MY", "url": "https://sooka.my/", "free": False}],
+    "FL1": [{"name": "Ligue 1 on beIN", "region": "MY", "url": "https://sooka.my/", "free": False}],
+    # RTM holds Malaysian free-to-air rights: every World Cup 2026 match, free.
+    "WC":  [{"name": "RTM Klik", "region": "MY", "url": "https://rtmklik.rtm.gov.my/", "free": True},
+            {"name": "Unifi TV", "region": "MY", "url": "https://unifi.com.my/unifi-tv", "free": False}],
+    "WWC": [{"name": "RTM Klik", "region": "MY", "url": "https://rtmklik.rtm.gov.my/", "free": True}],
+    "BSA": [{"name": "CazeTV (YouTube)", "region": "Worldwide", "url": "https://www.youtube.com/@CazeTV", "free": True}],
+    "MLS": [{"name": "MLS Season Pass", "region": "Worldwide", "url": "https://www.apple.com/apple-tv-plus/mls-season-pass/", "free": False}],
+}
+
+
+def official_watch(league_code: str) -> list[dict]:
+    """Legitimate places to watch a competition, region-preferred."""
+    return OFFICIAL_WATCH.get(league_code.upper(), OFFICIAL_WATCH["_default"])

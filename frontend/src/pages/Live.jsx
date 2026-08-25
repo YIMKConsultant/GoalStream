@@ -6,6 +6,7 @@ import { useLiveScores } from '../hooks/useLiveScores'
 import { HlsPlayer } from '../components/StreamPlayer'
 import { isLive, isUpcoming, kickoffTime, timeUntil, kickoffPhrase } from '../lib/matchStatus'
 import { reasonOf, carriesLeague } from '../lib/channelMatch'
+import WatchOfficial from '../components/WatchOfficial'
 import { saveLastWatched, loadLastWatched, clearLastWatched } from '../lib/lastWatched'
 
 // Yellow pill button, matching the left-pane style.
@@ -27,13 +28,13 @@ function MatchRow({ match, onPlay, channelCache, loadChannels }) {
     if (!channels) loadChannels(league)
   }
 
-  // The response includes offline candidates so we can explain a missing rights
-  // holder — but don't dump 30 dead rows on the viewer. Show what's playable,
-  // plus any offline rights holder, which is the one absence worth naming.
-  const playable = (channels ?? []).filter((c) => c.alive !== false)
+  // ONLY channels that actually hold rights to this competition. A
+  // `general_football` channel that happens to be on air is not showing this
+  // match — offering one here is what put Le Mans Cup qualifying under
+  // Southampton vs Stoke. When there is no holder we say where the match really
+  // is instead of substituting a channel that isn't showing it.
+  const shown = (channels ?? []).filter((c) => c.alive !== false && carriesLeague(c))
   const offlineHolders = (channels ?? []).filter((c) => c.alive === false && carriesLeague(c))
-  const noHolderPlayable = !playable.some(carriesLeague)
-  const shown = playable
 
   return (
     <div className="card p-4">
@@ -72,27 +73,24 @@ function MatchRow({ match, onPlay, channelCache, loadChannels }) {
           {!channels ? (
             <p className="text-white/30 text-sm">Finding free channels…</p>
           ) : shown.length === 0 ? (
-            <p className="text-white/30 text-sm">
-              No free channels are serving this league right now — the free catalog's
-              premium sports feeds are usually geo-locked or offline.
-            </p>
+            <>
+              {offlineHolders.length > 0 && (
+                <p className="text-xs text-amber-200/70 bg-amber-400/10 ring-1 ring-amber-400/20 rounded-lg px-3 py-2 mb-2">
+                  {offlineHolders.map((c) => c.name).join(', ')} hold the rights here, but{' '}
+                  {offlineHolders.length === 1 ? 'that feed is' : 'those feeds are'} offline
+                  right now.
+                </p>
+              )}
+              <WatchOfficial leagueCode={league} leagueName={match.league_name} compact />
+            </>
           ) : (
             <>
               <p className="text-white/40 text-xs mb-2">
                 {live
-                  ? <>Channels on air now. Only the ones marked <em>Carries this league</em> hold
-                     rights to this competition — the rest are football channels showing
-                     something else:</>
-                  : <>This match kicks off {kickoffPhrase(match.utcDate)}, so nothing is showing it
-                     yet. These channels carry the competition — come back around kickoff:</>}
+                  ? <>These channels hold rights to this competition and are on air now:</>
+                  : <>This match kicks off {kickoffPhrase(match.utcDate)}. These channels carry
+                     the competition — come back around kickoff:</>}
               </p>
-              {noHolderPlayable && offlineHolders.length > 0 && (
-                <p className="text-xs text-amber-200/70 bg-amber-400/10 ring-1 ring-amber-400/20 rounded-lg px-3 py-2 mb-2">
-                  {offlineHolders.map((c) => c.name).join(', ')} hold the rights here, but{' '}
-                  {offlineHolders.length === 1 ? 'that feed is' : 'those feeds are'} geo-blocked
-                  or offline right now.
-                </p>
-              )}
               <div className="flex flex-col gap-2">
                 {shown.map((c) => {
                   const reason = reasonOf(c)
@@ -220,10 +218,17 @@ export default function Live() {
       .catch(() => {})
 
   // Re-fetch by id rather than reusing a stored URL — stream tickets expire.
+  //
+  // saveLastWatched only records a fixture when the channel genuinely carries
+  // it, so a stored matchId can be trusted here. Without that guard the
+  // last-watched entry re-attached any channel to any match, which is how a
+  // motorsport feed came back on screen captioned as a Championship fixture.
   const resumeChannel = (saved) =>
     api.get(`/iptv/channels/${saved.channelId}`)
       .then((channel) => {
-        const match = [...live, ...upcoming].find((m) => m.id === saved.matchId) ?? null
+        const match = saved.matchId
+          ? [...live, ...upcoming].find((m) => m.id === saved.matchId) ?? null
+          : null
         play(channel, match)
       })
       .catch(() => clearLastWatched())   // gone, or no longer permitted
